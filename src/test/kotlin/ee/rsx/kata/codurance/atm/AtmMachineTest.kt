@@ -115,26 +115,23 @@ class AtmMachineTest {
     fun `withdraw funds of 1725 Euros and then 1825 Euros, from limited funds of ATM`() {
         val atm = AtmMachine(limitedFunds = true)
         val initialBalance = atm.remainingBalance
-        atm.withdraw(1725)
 
+        atm.withdraw(1725)
         val withdrawal = atm.withdraw(1825)
 
-        assertThat(withdrawal.sumOf { it.nomination }).isEqualTo(1825)
-
-        assertThat(withdrawal)
-            .containsExactlyInAnyOrderElementsOf(
-                listOfNotesInCounts(mapOf(
-                    BILL_100 to 4,
-                    BILL_50 to 12,
-                    BILL_20 to 19,
-                    BILL_10 to 44,
-                    BILL_5 to 1
-                ))
+        withdrawal.assertThatSumIs(1825)
+          .assertHasExactlyNotesInCounts(
+            mapOf(
+              BILL_100 to 4,
+              BILL_50 to 12,
+              BILL_20 to 19,
+              BILL_10 to 44,
+              BILL_5 to 1
             )
+          )
 
         val expectedRemainingBalance = initialBalance - 1725 - 1825
-        assertThat(atm.remainingBalance)
-            .isEqualTo(expectedRemainingBalance)
+        assertThat(atm.remainingBalance).isEqualTo(expectedRemainingBalance)
 
         atm.remainingFunds.assertHasExactlyNotesInCounts(mapOf(
             BILL_10 to 6,
@@ -150,14 +147,14 @@ class AtmMachineTest {
         val initialBalance = atm.remainingBalance
         atm.withdraw(1725)
         atm.withdraw(1825)
+        val remainingBalanceAvailable = initialBalance - 1725 - 1825
 
-        val test: () -> Unit = { atm.withdraw(1551) }
+        val test: () -> Unit = { atm.withdraw(remainingBalanceAvailable + 1) }
 
         assertThrows<IllegalStateException>(test).run {
             assertThat(message).isEqualTo("Not enough funds to withdraw required amount (1551) - please use another ATM")
 
-            val expectedRemainingBalance = initialBalance - 1725 - 1825
-            assertThat(atm.remainingBalance).isEqualTo(expectedRemainingBalance)
+            assertThat(atm.remainingBalance).isEqualTo(remainingBalanceAvailable)
         }
     }
 
@@ -172,5 +169,8 @@ class AtmMachineTest {
     }
 
     private fun listOfNotesInCounts(notesOfCount: Map<Note, Int>) =
-        notesOfCount.flatMap { (note, count) -> List(count) { note } }
+          notesOfCount.flatMap { (note, count) -> List(count) { note } }
+
+    private fun List<Note>.assertThatSumIs(amount: Int) = apply { assertThat(sumOf { it.nomination }).isEqualTo(amount) }
+
 }
